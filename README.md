@@ -1,2 +1,5 @@
-# cyRPi
-my Raspberry Pi 
+# cyRPi #
+
+My pratices on Raspberry Pi.
+
+
