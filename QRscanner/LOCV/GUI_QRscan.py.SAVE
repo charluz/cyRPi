@@ -1,0 +1,223 @@
+# -*- encoding: utf-8 -*-
+
+import os
+import numpy as np
+import cv2, time
+import tkinter as TK
+import threading
+
+DEBUG = False
+MAIN_WN_WIDTH = 640
+MAIN_WN_HEIGHT = 480
+
+#from cyCamera.Camera import threading_VideoStream as VideoStream
+
+if True:
+	#---- For cy_ViPanel.py development
+	from cy_ViPanel import tkViPanel
+	#from cy_ViPanel import tkMessagePanel
+	from cy_ViPanel import tkH2Frame, tkV2Frame, tkV3Frame
+	#import cy_ViPanel as ViDISP
+else:
+	#---- Use site-packages modules
+	from cyTkGUI.cy_ViPanel import tkViPanel
+	from cyTkGUI.cy_ViPanel import tkMessagePanel
+	from cyTkGUI.cy_ViPanel import tkH2Frame, tkV2Frame #, tkRadioButton
+	import cyTkGUI.cy_ViPanel as ViDISP
+
+
+
+#----------------------------------------------------------------------
+# Main GUI
+#----------------------------------------------------------------------
+class MainGUI:
+	"""
+	"""
+	def __init__(self):
+		self.thread = threading.Thread(target=self.Tk_mainloop, daemon=True, args=())
+		self.liveview = False
+
+	def Tk_mainloop(self):
+		self.root = TK.Tk()
+
+		#-- Create Top-Bottom frames
+		self.TB = tkV2Frame(self.root).Frames
+
+		#---------------------------------
+		# Decoded result frames
+		#---------------------------------
+		#-- Use Upper frame for decoded QR code, and rectified image display
+		self.resultFrames = tkH2Frame(self.TB[0]).Frames
+		self.boxQRView = tkViPanel(self.resultFrames[0], osdEn=False, size=(160, 160))
+		
+		self.textFrames = tkV2Frame(self.resultFrames[1]).Frames
+		
+		self.labelTime = TK.Label(self.textFrames[0], width=12, text="Time Used: ")
+		self.labelTime.pack(side=TK.LEFT, fill=TK.Y)
+		self.textTime = TK.StringVar()
+		TK.Entry(self.textFrames[0], width=42, textvariable=self.textTime).pack(expand=TK.YES)
+		"""
+		self.labelSize = TK.Label(self.textFrames[1], width=12, text="QR Size: ")
+		self.labelSize.pack(side=TK.LEFT, fill=TK.Y)
+		self.textSize = TK.StringVar()
+		TK.Entry(self.textFrames[1], width=42, textvariable=self.textSize).pack(expand=TK.YES)
+		"""
+		
+		self.labelCode = TK.Label(self.textFrames[1], width=12, text="QR Code: ")
+		self.labelCode.pack(side=TK.LEFT, fill=TK.Y)
+		self.textCode = TK.StringVar()
+		TK.Entry(self.textFrames[1], width=42, textvariable=self.textCode).pack(expand=TK.YES)
+
+		#---------------------------------
+		# Video Panel
+		#---------------------------------
+		self.View = tkViPanel(self.TB[1], osdEn=False, size=(MAIN_WN_WIDTH, MAIN_WN_HEIGHT))	# (720, 540), (960, 720)
+
+		self.root.mainloop()
+
+
+
+#---------------------------------------------------------
+# Main Entry
+#---------------------------------------------------------
+
+def onClose():
+	global evAckClose
+	evAckClose.set()
+
+
+
+def setup_capture(width=640, height=480):
+	"""Sets up the video capture device.
+
+	Returns the video capture instance on success and None on failure.
+
+	Arguments:
+		width: Width of frames to capture.
+		height: Height of frames to capture.
+	"""
+	capture = cv2.VideoCapture(0)
+	if not capture.isOpened():
+		#print("Could not open video device!")
+		return None
+	capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+	capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+	#capture.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
+	#capture.set(cv2.CAP_PROP_EXPOSURE, -6)
+	return capture
+
+
+# Display barcode and QR code location
+def draw_bbox(im, bbox):
+	n = len(bbox)
+	for j in range(n):
+		cv2.line(im, tuple(bbox[j][0]), tuple(bbox[ (j+1) % n][0]), (255,0,0), 3)
+	return im
+
+"""----- Create Camera vStream --------------------------
+"""
+"""
+if True:
+	vStream = VideoStream(camera="wbCam", camid=0, debug=False).start()
+	time.sleep(1)
+else:
+	imfiles = ["charles_001.jpg"]
+	images = [cv2.imread(imfile) for imfile in imfiles]
+	vStream = VideoStream(camera="photo", images=images).start()
+"""
+
+
+""" ----- Initiate Main GUI ------------------------------
+"""
+evAckClose = threading.Event()
+evAckClose.clear()
+mainGUI = MainGUI()
+mainGUI.thread.start()
+time.sleep(0.5)
+mainGUI.root.geometry("+640+200")
+
+mainGUI.root.wm_protocol("WM_DELETE_WINDOW", onClose)
+
+
+# Open Camera 
+capture = setup_capture(MAIN_WN_WIDTH, MAIN_WN_HEIGHT)
+if capture is None:
+	print("ERROR: Could not open video device!")
+	sys.exit()
+
+# Create a qrCodeDetector Object
+qrDecoder = cv2.QRCodeDetector()
+
+
+scanState = "HUNTING"	#-- "LOCKED", "ESCAPING"
+ESCAPE_THRESOLD = 20
+escape_count = 0
+lastCodeSZ=""
+lockedCodeSZ=""
+
+mp3Beep = "./beep.mp3"
+mp3Beep2 = "./beep-beep.mp3"
+playLocked = True
+
+""" ----- Main Loop ------------------------------
+"""
+while True and not evAckClose.isSet():
+
+	grabbed, frame = capture.read()
+
+	if not grabbed:
+		time.sleep(0.05)
+		continue
+
+	# Detect and decode the qrcode
+	t = time.time()
+	data,bbox,rectifiedImage = qrDecoder.detectAndDecode(frame)
+	
+	timeSZ = "{:.3f} sec".format(time.time() - t)
+	if DEBUG:
+		print("Time Taken for Detect and Decode : {:.3f} seconds".format(time.time() - t))
+
+	if len(data)>0:
+		scanState = "LOCKED"
+		escape_count = 0
+		lastCodeSZ = codeSZ = "{}".format(data)
+		frame = draw_bbox(frame, bbox)
+		rectifiedImage = np.uint8(rectifiedImage)
+		if playLocked:
+			os.system("mplayer "+mp3Beep2)
+			playLocked = False
+		if DEBUG:
+			print("shape = {}".format(rectifiedImage.shape))
+	else:
+		if scanState == "LOCKED":
+			scanState = "ESCAPING"
+			escape_count = 1
+		elif scanState == "ESCAPING":
+			escape_count += 1
+			if escape_count > ESCAPE_THRESOLD:
+				scanState = "HUNTING"
+				mainGUI.boxQRView.off()
+				rectifiedImage = None
+				lastCodeSZ = ""
+				playLocked = True
+		else:
+			#-- scanState == "Hunting"
+			codeSZ = "Not Found"
+			if lastCodeSZ != "":
+				mainGUI.boxQRView.off()
+				lastCodeSZ = ""
+			rectifiedImage = None
+	
+	if DEBUG:
+		print("scanState={}".format(scanState))
+
+	mainGUI.textCode.set(codeSZ)
+	mainGUI.textTime.set(timeSZ)
+	if rectifiedImage is None:
+		pass #mainGUI.boxQRView.off()
+	else:
+		mainGUI.boxQRView.show(rectifiedImage)
+
+	mainGUI.View.show(frame)
+
+cv2.destroyAllWindows()
