@@ -9,7 +9,7 @@ import tkinter as TK
 from PIL import Image
 from PIL import ImageTk
 
-from cy_Utils.cy_CvOSD import CvOSD as OSD
+from cy_CvOSD import CvOSD as OSD
 
 #------------------------------------------------------------------
 # TODO: resize image to fit panel size

@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-import os
+import os, sys
 import numpy as np
 import cv2, time
 import tkinter as TK
@@ -10,7 +10,11 @@ DEBUG = False
 MAIN_WN_WIDTH = 640
 MAIN_WN_HEIGHT = 480
 
-#from cyCamera.Camera import threading_VideoStream as VideoStream
+USE_THREADING_CAMERA = True
+
+if USE_THREADING_CAMERA == True:
+	from web_camera import threading_WebCamera as VideoStream
+
 
 if True:
 	#---- For cy_ViPanel.py development
@@ -96,15 +100,24 @@ def setup_capture(width=640, height=480):
 		width: Width of frames to capture.
 		height: Height of frames to capture.
 	"""
-	capture = cv2.VideoCapture(0)
+	
+	if USE_THREADING_CAMERA:
+		capture = VideoStream().start()
+	else:
+		capture = cv2.VideoCapture(0)
+		
+		
 	if not capture.isOpened():
 		#print("Could not open video device!")
 		return None
-	capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-	capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-	capture.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
-	capture.set(cv2.CAP_PROP_EXPOSURE, -10)
-	#capture.set(cv2.CAP_PROP_GAIN, 4.0)
+
+	if USE_THREADING_CAMERA == False:
+		capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+		capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+		capture.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
+		capture.set(cv2.CAP_PROP_EXPOSURE, -10)
+		capture.set(cv2.CAP_PROP_GAIN, 4.0)
+
 	return capture
 
 
@@ -171,67 +184,68 @@ while True and not evAckClose.isSet():
 		time.sleep(0.05)
 		continue
 
-	# Detect and decode the qrcode
-	t = time.time()
-	data,bbox,rectifiedImage = qrDecoder.detectAndDecode(frame)
-	
-	timeSZ = "{:.3f} sec".format(time.time() - t)
-	if DEBUG:
-		print("Time Taken for Detect and Decode : {:.3f} seconds".format(time.time() - t))
+	if True:
+		# Detect and decode the qrcode
+		t = time.time()
+		data,bbox,rectifiedImage = qrDecoder.detectAndDecode(frame)
+		
+		timeSZ = "{:.3f} sec".format(time.time() - t)
+		if DEBUG:
+			print("Time Taken for Detect and Decode : {:.3f} seconds".format(time.time() - t))
 
-	if len(data)>0:
-		if scanState == "HUNTING":
+		if len(data)>0:
+			if scanState == "HUNTING":
+				if DEBUG:
+					print("--- XX ---")
+					
+				scanState = "LOCKED"
+
+				lockedCodeSZ = codeSZ = "{}".format(data)
+				frame = draw_bbox(frame, bbox)
+				lockedFrame = frame.copy()
+				rectifiedImage = np.uint8(rectifiedImage)
+				lockedRectifiedImage = rectifiedImage.copy()
+
+				os.system("mplayer "+mp3Beep2)
+				lockedTime = time.time()
+			else:
+				if DEBUG:
+					print("--- YY ---")
+				frame = lockedFrame
+				rectifiedImage = None	#lockedRectifiedImage
+
+		else:
 			if DEBUG:
-				print("--- XX ---")
+				print("--- 1 ---")
 				
-			scanState = "LOCKED"
+			if scanState == "LOCKED" and (time.time() - lockedTime < 3):
+				if DEBUG:
+					print("--- 2 ---")
+				frame = lockedFrame
+			else:
+				if DEBUG:
+					print("--- 3 ---")
+				scanState = "HUNTING"
+				mainGUI.boxQRView.off()
+				rectifiedImage = None
+				lockedCodeSZ = ""
+				codeSZ=""
 
-			lockedCodeSZ = codeSZ = "{}".format(data)
-			frame = draw_bbox(frame, bbox)
-			lockedFrame = frame.copy()
-			rectifiedImage = np.uint8(rectifiedImage)
-			lockedRectifiedImage = rectifiedImage.copy()
-
-			os.system("mplayer "+mp3Beep2)
-			lockedTime = time.time()
-		else:
-			if DEBUG:
-				print("--- YY ---")
-			frame = lockedFrame
-			rectifiedImage = None	#lockedRectifiedImage
-
-	else:
+		
 		if DEBUG:
-			print("--- 1 ---")
-			
-		if scanState == "LOCKED" and (time.time() - lockedTime < 3):
+			print("scanState={} ".format(scanState))
+
+		mainGUI.textCode.set(codeSZ)
+		mainGUI.textTime.set(timeSZ)
+		if rectifiedImage is None:
 			if DEBUG:
-				print("--- 2 ---")
-			frame = lockedFrame
+				print("--- A ---")
+			pass #mainGUI.boxQRView.off()
 		else:
 			if DEBUG:
-				print("--- 3 ---")
-			scanState = "HUNTING"
-			mainGUI.boxQRView.off()
-			rectifiedImage = None
-			lockedCodeSZ = ""
-			codeSZ=""
-
+				print("--- B ---")
+			mainGUI.boxQRView.show(rectifiedImage)
 	
-	if DEBUG:
-		print("scanState={} ".format(scanState))
-
-	mainGUI.textCode.set(codeSZ)
-	mainGUI.textTime.set(timeSZ)
-	if rectifiedImage is None:
-		if DEBUG:
-			print("--- A ---")
-		pass #mainGUI.boxQRView.off()
-	else:
-		if DEBUG:
-			print("--- B ---")
-		mainGUI.boxQRView.show(rectifiedImage)
-
 	mainGUI.View.show(frame)
 
 		

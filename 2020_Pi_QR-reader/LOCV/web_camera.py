@@ -120,8 +120,14 @@ class threading_WebCamera:
 		self.stream.release()
 
 
+	def set(self, param, value):
+		""" set cv2.VideoCapture properties
+		"""
+		print("setting param={}, value={}".format(param, value))
+		self.stream.set(param, value)
 
-
+	def isOpened(self):
+		return self.ready
 
 # #-------------------------------------------------
 # # Main()
