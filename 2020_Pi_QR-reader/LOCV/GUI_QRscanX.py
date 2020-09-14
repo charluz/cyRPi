@@ -8,6 +8,8 @@ import threading
 from threading import Lock
 from queue import Queue
 
+from pygame import mixer
+
 DEBUG = False
 MAIN_WN_WIDTH = 640
 MAIN_WN_HEIGHT = 480
@@ -89,8 +91,9 @@ class MainGUI:
 #---------------------------------------------------------
 
 def onClose():
-	global evAckClose
+	global evAckClose, evStopQR
 	evAckClose.set()
+	evStopQR.set()
 
 
 
@@ -178,11 +181,18 @@ mp3Beep2 = "./beep-beep.mp3"
 
 lockedTime = time.time()
 
+"""----- Beep-Beep -------------------------------
+"""
+mixer.init()
+mixer.music.load("./beep-beep.mp3")
 
 """----- QR Decode thread ------------------------
 https://www.pythonforthelab.com/blog/handling-and-sharing-data-between-threads/
 https://blog.gtwang.org/programming/python-threading-multithreaded-programming-tutorial/
 """
+evStopQR = threading.Event()
+evStopQR.clear()
+
 qr_lock = Lock()
 queue_in = Queue()
 while not queue_in.empty():
@@ -197,11 +207,13 @@ qrData = ""
 qrBbox = None
 qrRectifiedImage = None
 qrBusy = False
-#def QR_Decoder_Thread(queue_in, queue_out,qrBusy, qrData, qrBbox, qrRectifiedImage):
 def QR_Decoder_Thread(queue_in, queue_out):
 	busy = False
 		
 	while True:
+		if evStopQR.isSet():
+			break
+			
 		with qr_lock:
 			if not queue_in.empty():
 				srcImg = queue_in.get()
@@ -267,6 +279,7 @@ while True and not evAckClose.isSet():
 		
 	if (not qrBusy):
 		if (len(qrData)>0):
+			mixer.music.play()
 			#-- QR detected and decoded	
 			codeSZ = "{}".format(qrData)
 			frame = draw_bbox(qrSrcImg, qrBbox)
