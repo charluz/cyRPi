@@ -88,7 +88,7 @@ class threading_WebCamera:
 			print("[{}] stopped ...".format(self.camName))
 
 
-	def read(self, blocking=True):
+	def read(self, blocking=False):
 		""" 取回及時畫面
 		"""
 		if blocking:
@@ -115,16 +115,12 @@ class threading_WebCamera:
 				self.frame_lock.acquire()
 				self.Frame = _frame
 				self.frame_lock.release()
-				time.sleep(0.001)
+				#time.sleep(0.001)
+				time.sleep(0.03)
 
 		self.stream.release()
 
 
-	def set(self, param, value):
-		""" set cv2.VideoCapture properties
-		"""
-		print("setting param={}, value={}".format(param, value))
-		self.stream.set(param, value)
 
 	def isOpened(self):
 		return self.ready

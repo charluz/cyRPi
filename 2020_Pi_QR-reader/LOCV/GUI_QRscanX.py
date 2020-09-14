@@ -5,14 +5,14 @@ import numpy as np
 import cv2, time
 import tkinter as TK
 import threading
+from threading import Lock
+from queue import Queue
 
 DEBUG = False
 MAIN_WN_WIDTH = 640
 MAIN_WN_HEIGHT = 480
 
 USE_THREADING_CAMERA = True
-
-TWO_STEP_DECODE = True
 
 
 if USE_THREADING_CAMERA == True:
@@ -171,95 +171,129 @@ ESCAPE_THRESOLD = 20
 escape_count = 0
 lastCodeSZ=""
 lockedCodeSZ=""
+timeSZ=""
 
 mp3Beep = "./beep.mp3"
 mp3Beep2 = "./beep-beep.mp3"
 
 lockedTime = time.time()
 
+
+"""----- QR Decode thread ------------------------
+https://www.pythonforthelab.com/blog/handling-and-sharing-data-between-threads/
+https://blog.gtwang.org/programming/python-threading-multithreaded-programming-tutorial/
+"""
+qr_lock = Lock()
+queue_in = Queue()
+while not queue_in.empty():
+	tt = queue_in.get()
+	
+queue_out = Queue()
+while not queue_out.empty():
+	tt = queue_out.get()
+
+qrSrcImg = None
+qrData = ""
+qrBbox = None
+qrRectifiedImage = None
+qrBusy = False
+#def QR_Decoder_Thread(queue_in, queue_out,qrBusy, qrData, qrBbox, qrRectifiedImage):
+def QR_Decoder_Thread(queue_in, queue_out):
+	busy = False
+		
+	while True:
+		with qr_lock:
+			if not queue_in.empty():
+				srcImg = queue_in.get()
+				busy = True
+		
+		#--- do QR detect and decode
+		if busy:
+			if DEBUG: 
+				print("QR: Busy ---".format(busy))
+				
+			t = time.time()
+			data,bbox,rectifiedImage = qrDecoder.detectAndDecode(srcImg)
+			timeSZ = "{:.3f} sec".format(time.time() - t)
+			if DEBUG:
+				print("QR: timeSZ={}".format(timeSZ))
+
+			with qr_lock:
+				busy = False
+				queue_out.put(data)
+				queue_out.put(bbox)
+				queue_out.put(rectifiedImage)
+				queue_out.put(timeSZ)
+				
+				if DEBUG:
+					print("QR: Done --- data={}".format(data))
+					
+		#time.sleep(0.010)
+
+qrDecodeX = threading.Thread(target=QR_Decoder_Thread, daemon=True, args=(queue_in, queue_out))
+qrDecodeX.start()
+
+
 """ ----- Main Loop ------------------------------
 """
+grabbed, frame = capture.read()
+with qr_lock:
+	qrSrcImg = frame.copy()
+	queue_in.put(qrSrcImg)
+	qrBusy = True
+	if DEBUG:
+		print("init -- qrTrig ---")
+
+time.sleep(0.05)
+
 while True and not evAckClose.isSet():
 
 	grabbed, frame = capture.read()
 
-	if not grabbed:
-		time.sleep(0.05)
-		continue
-
-	if True:
-		# Detect and decode the qrcode
-		t = time.time()
-		
-		if TWO_STEP_DECODE:
-			bbox = qrDecoder.detect(frame)
-		else:
-			data,bbox,rectifiedImage = qrDecoder.detectAndDecode(frame)
-		
-		if TWO_STEP_DECODE:
-			if len(bbox) > 0:
-				data, rectifiedImage = qrDecoder.decode(frame, bbox)
-			else:
-				data = ""
-				
-		timeSZ = "{:.3f} sec".format(time.time() - t)
-		if DEBUG:
-			print("Time Taken for Detect and Decode : {:.3f} seconds".format(time.time() - t))
-
-		if len(data)>0:
-			if scanState == "HUNTING":
-				if DEBUG:
-					print("--- XX ---")
-					
-				scanState = "LOCKED"
-
-				lockedCodeSZ = codeSZ = "{}".format(data)
-				frame = draw_bbox(frame, bbox)
-				lockedFrame = frame.copy()
-				rectifiedImage = np.uint8(rectifiedImage)
-				lockedRectifiedImage = rectifiedImage.copy()
-
-				os.system("mplayer "+mp3Beep2)
-				lockedTime = time.time()
-			else:
-				if DEBUG:
-					print("--- YY ---")
-				frame = lockedFrame
-				rectifiedImage = None	#lockedRectifiedImage
-
-		else:
+	with qr_lock:
+		if not queue_out.empty():
 			if DEBUG:
-				print("--- 1 ---")
-				
-			if scanState == "LOCKED" and (time.time() - lockedTime < 3):
-				if DEBUG:
-					print("--- 2 ---")
-				frame = lockedFrame
-			else:
-				if DEBUG:
-					print("--- 3 ---")
-				scanState = "HUNTING"
-				mainGUI.boxQRView.off()
-				rectifiedImage = None
-				lockedCodeSZ = ""
-				codeSZ=""
+				print("Main: queue_out not empty!!")
+			
+			qrData = queue_out.get()
+			qrBbox = queue_out.get()
+			qrRectifiedImage = queue_out.get()
+			timeSZ = queue_out.get()
+			qrBusy = False
 
+			
+	if DEBUG:
+		print("Main: qrBusy={}".format(qrBusy))
 		
-		if DEBUG:
-			print("scanState={} ".format(scanState))
+	if (not qrBusy):
+		if (len(qrData)>0):
+			#-- QR detected and decoded	
+			codeSZ = "{}".format(qrData)
+			frame = draw_bbox(qrSrcImg, qrBbox)
+			#lockedFrame = frame.copy()
+			rectifiedImage = np.uint8(qrRectifiedImage)
+			#lockedRectifiedImage = rectifiedImage.copy()
 
-		mainGUI.textCode.set(codeSZ)
-		mainGUI.textTime.set(timeSZ)
-		if rectifiedImage is None:
-			if DEBUG:
-				print("--- A ---")
-			pass #mainGUI.boxQRView.off()
-		else:
-			if DEBUG:
-				print("--- B ---")
+			mainGUI.textCode.set(codeSZ)
+			mainGUI.textTime.set(timeSZ)
 			mainGUI.boxQRView.show(rectifiedImage)
-	
-	mainGUI.View.show(frame)
+			mainGUI.View.show(frame)
+			
+			time.sleep(2)
+			
+			mainGUI.boxQRView.off()
 
+		#grabbed, frame = capture.read()
+		with qr_lock:
+			qrSrcImg = frame.copy()
+			queue_in.put(qrSrcImg)
+			qrBusy = True
+			if DEBUG:
+				print("Main: Trig >>>>")
+		#time.sleep(0.001)
 		
+	mainGUI.View.show(frame)
+	time.sleep(0.05)
+
+qrDecodeX.join()
 cv2.destroyAllWindows()

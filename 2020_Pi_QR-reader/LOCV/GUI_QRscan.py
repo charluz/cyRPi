@@ -11,6 +11,8 @@ MAIN_WN_WIDTH = 640
 MAIN_WN_HEIGHT = 480
 
 USE_THREADING_CAMERA = True
+USE_THREADING_DECODE = False
+
 
 if USE_THREADING_CAMERA == True:
 	from web_camera import threading_WebCamera as VideoStream
@@ -174,21 +176,41 @@ mp3Beep2 = "./beep-beep.mp3"
 
 lockedTime = time.time()
 
+
+"""----- QR Decode thread ------------------------
+"""
+def QR_Decoder_Thread():
+	pass
+	
+qrDecodeX = threading.Thread(target=QR_Decoder_Thread, daemon=True, args=()).start()
+
+
+
 """ ----- Main Loop ------------------------------
 """
 while True and not evAckClose.isSet():
 
 	grabbed, frame = capture.read()
 
+	"""
 	if not grabbed:
 		time.sleep(0.05)
 		continue
-
+	"""
 	if True:
 		# Detect and decode the qrcode
 		t = time.time()
-		data,bbox,rectifiedImage = qrDecoder.detectAndDecode(frame)
 		
+		if USE_THREADING_DECODE:
+			ret, bbox = qrDecoder.detectMulti(frame)
+			print("type ret={}, type bbox={}".format(type(ret), type(bbox)))
+			if ret:
+				data, rectifiedImage = qrDecoder.decode(frame, bbox)
+			else:
+				data = ""
+		else:
+			data,bbox,rectifiedImage = qrDecoder.detectAndDecode(frame)
+				
 		timeSZ = "{:.3f} sec".format(time.time() - t)
 		if DEBUG:
 			print("Time Taken for Detect and Decode : {:.3f} seconds".format(time.time() - t))
