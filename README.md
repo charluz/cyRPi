@@ -10,3 +10,4 @@ An example from pyimagesearch post at 2018-06-25, [Raspberry Pi Face Recognition
 * https://github.com/cedricve/raspicam RaspiCam: C++ API for using Raspberry camera (with/without OpenCV)
 * https://microsoft.github.io/ELL/tutorials/Getting-started-with-image-classification-in-cpp/  Getting started with image classification on Raspberry Pi using C++
 * https://picamera.readthedocs.io/en/release-1.13/fov.html CH6 Camera Hardware @ picamera document
+* https://picamera.readthedocs.io/en/release-1.13/fov.html Pi Camera Sensor Mode @ picamera document
