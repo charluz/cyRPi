@@ -10,7 +10,7 @@ from queue import Queue
 
 from pygame import mixer
 
-DEBUG = False
+DEBUG = True
 MAIN_WN_WIDTH = 640
 MAIN_WN_HEIGHT = 480
 
@@ -223,12 +223,12 @@ def QR_Decoder_Thread(queue_in, queue_out):
 		if busy:
 			if DEBUG: 
 				print("QR: Busy ---".format(busy))
-				
+
 			t = time.time()
 			data,bbox,rectifiedImage = qrDecoder.detectAndDecode(srcImg)
 			timeSZ = "{:.3f} sec".format(time.time() - t)
 			if DEBUG:
-				print("QR: timeSZ={}".format(timeSZ))
+				print("QR: timeSZ={}".format(timeSZ))		
 
 			with qr_lock:
 				busy = False
@@ -305,7 +305,7 @@ while True and not evAckClose.isSet():
 				print("Main: Trig >>>>")
 		#time.sleep(0.001)
 		
-	mainGUI.View.show(frame)
+	#mainGUI.View.show(frame)
 	time.sleep(0.05)
 
 qrDecodeX.join()

@@ -45,7 +45,11 @@ class threading_WebCamera:
 		# 設定擷取影像的尺寸大小
 		self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, self.resolution[0])
 		self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
-
+		if False:
+			self.stream.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
+			self.stream.set(cv2.CAP_PROP_EXPOSURE, -15)
+			#self.stream.set(cv2.CAP_PROP_GAIN, 4.0)
+			
 		if self.debug:
 			self.camName = "{}{}".format(name, src)
 			print("[{}] initiated.".format(self.camName))
@@ -97,9 +101,9 @@ class threading_WebCamera:
 			if sleep_time > 0.0:
 				time.sleep(sleep_time)
 
-		self.frame_lock.acquire()
+		#self.frame_lock.acquire()
 		ret = self.grabbed, self.Frame
-		self.frame_lock.release()
+		#self.frame_lock.release()
 
 		self.last_timer = time.time()
 		return ret
@@ -116,7 +120,7 @@ class threading_WebCamera:
 				self.Frame = _frame
 				self.frame_lock.release()
 				#time.sleep(0.001)
-				time.sleep(0.03)
+				time.sleep(0.05)
 
 		self.stream.release()
 
