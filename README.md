@@ -1,6 +1,7 @@
 # cyRPi #
 
-My pratices on Raspberry Pi.
+## channel on my slack ##
+https://cy-h615410.slack.com/archives/G01AKBP4MN2
 
 ## pi-face-recognition ##
 An example from pyimagesearch post at 2018-06-25, [Raspberry Pi Face Recognition](https://www.pyimagesearch.com/2018/06/25/raspberry-pi-face-recognition).
