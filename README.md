@@ -3,6 +3,10 @@
 ## channel on my slack ##
 https://cy-h615410.slack.com/archives/G01AKBP4MN2
 
+## 參考資料 ##
+* [Cross compiling OpenCV 4 for Raspberry Pi and BeagleBone Black](https://solarianprogrammer.com/2018/12/18/cross-compile-opencv-raspberry-pi-raspbian/)
+* [Cross-compiling OpenCV 3 for Raspberry Pi 2](https://visualgdb.com/tutorials/raspberry/opencv/build/)
+
 ## pi-face-recognition ##
 An example from pyimagesearch post at 2018-06-25, [Raspberry Pi Face Recognition](https://www.pyimagesearch.com/2018/06/25/raspberry-pi-face-recognition).
 
