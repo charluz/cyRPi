@@ -1,4 +1,6 @@
-# 參考資料 #
+# 實作 RaspiCam: C++ API for using Raspberry camera with/without OpenCv #
+
+## 參考資料 ##
 * [RaspiCam: C++ API for using Raspberry camera with/without OpenCv](http://www.uco.es/investiga/grupos/ava/node/40)
 * The raspicam I use is v0.1.9 @ [SOURCEFORGE](https://sourceforge.net/projects/raspicam/files/?)
 * Installation of OpenCV v4.1.0 on Raspberry Pi: [my Workshop: Cross Compiling OpencCV 4.0 for Raspberry Pi](https://github.com/charluz/cyRPi/tree/master/20Q3_CrossCompile-opencv)
