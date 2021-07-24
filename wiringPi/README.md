@@ -10,3 +10,6 @@
 * Show GPIO Table: **gpio readall**
 * Set Mode: **gpio mode PIN in/out/pwm/up/down/tri**
 * Use BCM_GPIO pin number: **gpio -g ...**
+
+## Compile & Link
+gcc test_gpio.c **-lwiringPi**
